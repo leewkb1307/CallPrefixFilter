@@ -2,4 +2,4 @@
 Call Prefix Filter APK archive
 
 ## Home page
-https://sites.google.com/view/callprefixfilter/home
+https://sites.google.com/view/callprefixfilter
