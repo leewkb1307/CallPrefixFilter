@@ -1,29 +1,24 @@
 package com.gmail.leewkb1307.callprefixfilter;
 
 import android.Manifest;
-import android.annotation.TargetApi;
 import android.app.SearchManager;
 import android.content.ContentResolver;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
-import android.os.Build;
-import android.preference.PreferenceManager;
-import android.provider.CallLog;
+import androidx.preference.PreferenceManager;
 import android.provider.ContactsContract;
-import android.support.annotation.NonNull;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
-import android.support.v4.view.GestureDetectorCompat;
-import android.support.v7.app.ActionBar;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
+import androidx.core.view.GestureDetectorCompat;
+import androidx.appcompat.app.ActionBar;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
-import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.ContextMenu;
 import android.view.Menu;
@@ -32,19 +27,13 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ListView;
-import android.widget.TextView;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
-
-import static android.os.Build.VERSION_CODES.JELLY_BEAN;
-import static android.os.Build.VERSION_CODES.KITKAT;
 
 public class CallLogActivity extends AppCompatActivity {
-    private PhoneCallLogAdapter mAdapter;
-    private ActionDbHelper mDbHelper;
+    private CallLogAdapter mAdapter;
+    private CallLogDbHelper mCallLogDbHelper;
+    private ActionDbHelper mActionDbHelper;
     private int mSortType;
     private PrefixActionDialog mDialog;
     private AlertDialog mDialogNow;
@@ -52,26 +41,20 @@ public class CallLogActivity extends AppCompatActivity {
     private ArrayList<PrefixAction> mPrefixActions;
     private AsyncTaskReceiver mAsyncTaskReceiver;
     private boolean mAsyncBlock = false;
-    private final int MY_PERMISSIONS_REQUEST_READ_CALL_LOG = 3;
     private final int CONTEXT_MENU_CONTACT = 0;
     private final int CONTEXT_MENU_EDIT_PREFIX = 1;
     private final int CONTEXT_MENU_ADD_PREFIX = 2;
     private final int CONTEXT_MENU_SEARCH_WEB = 3;
 
-    private final String mLogTAG = "CPF CallLogActivity";
+    private final String mLogTAG = "CallLogActivity";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        mSortType = PhoneCallLogAdapter.SORT_BY_TIME;
+        mSortType = CallLogAdapter.SORT_BY_TIME;
 
-        // check that we can read call log
-        if (isReadCallLogPermitted()) {
-            InitCallLogList();
-        } else {
-            requestCallLogPermission();
-        }
+        InitCallLogList();
     }
 
     @Override
@@ -87,34 +70,6 @@ public class CallLogActivity extends AppCompatActivity {
         }
     }
 
-    private boolean isReadCallLogPermitted() {
-        if (Build.VERSION.SDK_INT < JELLY_BEAN)
-            return true;
-
-        Context context = getApplicationContext();
-        return ContextCompat.checkSelfPermission(context,
-                Manifest.permission.READ_CALL_LOG)
-                == PackageManager.PERMISSION_GRANTED;
-    }
-
-    @TargetApi(Build.VERSION_CODES.JELLY_BEAN)
-    private void requestCallLogPermission() {
-        ActivityCompat.requestPermissions(this,
-                new String[]{Manifest.permission.READ_CALL_LOG},
-                MY_PERMISSIONS_REQUEST_READ_CALL_LOG);
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode,
-                                           @NonNull String permissions[], @NonNull int[] grantResults) {
-        switch (requestCode) {
-            case MY_PERMISSIONS_REQUEST_READ_CALL_LOG: {
-                InitCallLogList();
-                break;
-            }
-        }
-    }
-
     private void InitCallLogList() {
         Bundle bundle = getIntent().getExtras();
         boolean hideBack = false;
@@ -123,156 +78,44 @@ public class CallLogActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_call_log);
 
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-
         ActionBar actionBar = getSupportActionBar();
         if (actionBar != null) {
             actionBar.setDisplayHomeAsUpEnabled(!hideBack);
         }
 
-        boolean isLogReady = isReadCallLogPermitted();
+        mDialog = new PrefixActionDialog(this);
+        mDialog.registerCallback(onPrefixModified);
 
-        if (isLogReady) {
-            mDialog = new PrefixActionDialog(this);
-            mDialog.registerCallback(onPrefixModified);
+        mAsyncTaskReceiver = new AsyncTaskReceiver();
+        mAsyncTaskReceiver.setAsyncTaskListener(onAsyncTaskChanged);
 
-            mAsyncTaskReceiver = new AsyncTaskReceiver();
-            mAsyncTaskReceiver.setAsyncTaskListener(onAsyncTaskChanged);
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(AsyncTaskReceiver.ACTION_ASYNC_STATE);
+        intentFilter.addAction(AsyncTaskReceiver.ACTION_ASYNC_PROGRESS);
+        intentFilter.addAction(AsyncTaskReceiver.ACTION_ASYNC_DONE);
+        registerReceiver(mAsyncTaskReceiver, intentFilter);
 
-            IntentFilter intentFilter = new IntentFilter();
-            intentFilter.addAction(AsyncTaskReceiver.ACTION_ASYNC_STATE);
-            intentFilter.addAction(AsyncTaskReceiver.ACTION_ASYNC_PROGRESS);
-            intentFilter.addAction(AsyncTaskReceiver.ACTION_ASYNC_DONE);
-            registerReceiver(mAsyncTaskReceiver, intentFilter);
+        broadcastAsyncEnquiry();
 
-            broadcastAsyncEnquiry();
+        mActionDbHelper = new ActionDbHelper(this);
 
-            mDbHelper = new ActionDbHelper(this);
+        mCallLogDbHelper = new CallLogDbHelper(this);
 
-            ArrayList<PhoneCallLog> phoneCallLog = getPhoneCallLog();
-            mAdapter = new PhoneCallLogAdapter(this, phoneCallLog);
+        ArrayList<CallLog> callLog = getPhoneCallLog();
+        mAdapter = new CallLogAdapter(this, callLog);
 
-            final ListView lv = (ListView) findViewById(R.id.list_call_log);
-            if (lv != null) {
-                lv.setAdapter(mAdapter);
+        final ListView lv = (ListView) findViewById(R.id.list_call_log);
+        if (lv != null) {
+            lv.setAdapter(mAdapter);
 
-                registerForContextMenu(lv);
-            }
-
-            mDetector = new GestureDetectorCompat(this, new SwipeGestureListener(this).setSwipeListener(onSwipe));
+            registerForContextMenu(lv);
         }
-        else {
-            TextView tview = (TextView) findViewById(R.id.text_call_log_error);
-            if (tview != null)
-                tview.setVisibility(View.VISIBLE);
-        }
+
+        mDetector = new GestureDetectorCompat(this, new SwipeGestureListener(this).setSwipeListener(onSwipe));
     }
 
-    private ArrayList<PhoneCallLog> getPhoneCallLog() {
-        ArrayList<PhoneCallLog> calllogs = new ArrayList<>();
-
-        PhoneCallLog pcl;
-
-        DateFormat dateFormat = new SimpleDateFormat("MM-dd HH:mm");
-        String[] CallDetails;
-        if (Build.VERSION.SDK_INT >= KITKAT) {
-            CallDetails = new String[] {
-                    CallLog.Calls.NUMBER,
-                    CallLog.Calls.DATE,
-                    CallLog.Calls.TYPE,
-                    CallLog.Calls.NUMBER_PRESENTATION
-            };
-        }
-        else {
-            CallDetails = new String[] {
-                    CallLog.Calls.NUMBER,
-                    CallLog.Calls.DATE,
-                    CallLog.Calls.TYPE
-            };
-        }
-
-        String sort_order = CallLog.Calls.DEFAULT_SORT_ORDER;
-        int disp_seq = 0;
-        try {
-            Cursor cursor = getContentResolver().query(CallLog.Calls.CONTENT_URI, CallDetails, null, null, sort_order);
-            if (cursor != null) {
-                calllogs.ensureCapacity(cursor.getCount());
-                while (cursor.moveToNext()) {
-                    boolean isNum = true;
-                    int idx_num = cursor.getColumnIndex(CallLog.Calls.NUMBER);
-                    int idx_date = cursor.getColumnIndex(CallLog.Calls.DATE);
-                    int idx_type = cursor.getColumnIndex(CallLog.Calls.TYPE);
-
-                    String str_number = cursor.getString(idx_num);
-                    if (str_number == null)
-                        continue;
-
-                    if (Build.VERSION.SDK_INT >= KITKAT) {
-                        int idx_psnt = cursor.getColumnIndex(CallLog.Calls.NUMBER_PRESENTATION);
-                        int psnt_type;
-
-                        try {
-                            psnt_type = Integer.parseInt(cursor.getString(idx_psnt));
-
-                            switch (psnt_type) {
-                                case CallLog.Calls.PRESENTATION_RESTRICTED:
-                                    if (str_number.isEmpty() || str_number.equals("-2")) {
-                                        str_number = "Private number";
-                                        isNum = false;
-                                    }
-                                    break;
-                                case CallLog.Calls.PRESENTATION_UNKNOWN:
-                                    if (str_number.isEmpty() || str_number.equals("-3")) {
-                                        str_number = "Unknown number";
-                                        isNum = false;
-                                    }
-                                    break;
-                                case CallLog.Calls.PRESENTATION_PAYPHONE:
-                                    if (str_number.isEmpty() || str_number.equals("-4")) {
-                                        str_number = "Pay phone";
-                                        isNum = false;
-                                    }
-                                    break;
-                                default:
-                                    break;
-                            }
-                        }
-                        catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                    else {
-                        if (str_number.isEmpty()) {
-                            str_number = "Unknown number";
-                            isNum = false;
-                        }
-                    }
-
-                    if (!str_number.isEmpty()) {
-                        Date call_date = new Date(cursor.getLong(idx_date));
-                        int call_type = Integer.parseInt(cursor.getString(idx_type));
-
-                        pcl = new PhoneCallLog();
-                        pcl.setPhoneNumber(str_number);
-                        pcl.setCallDate(dateFormat.format(call_date));
-                        pcl.setCallType(call_type);
-                        pcl.setIsNumber(isNum);
-                        pcl.setDispSeq(disp_seq);
-                        calllogs.add(pcl);
-
-                        disp_seq++;
-                    }
-                }
-
-                cursor.close();
-            }
-        }
-        catch (SecurityException e) {
-            e.printStackTrace();
-        }
-
-        return calllogs;
+    private ArrayList<CallLog> getPhoneCallLog() {
+        return mCallLogDbHelper.getCallLog();
     }
 
     private void updateSortType(int sort_type) {
@@ -287,17 +130,15 @@ public class CallLogActivity extends AppCompatActivity {
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
-        if (isReadCallLogPermitted()) {
-            getMenuInflater().inflate(R.menu.menu_call_log, menu);
+        getMenuInflater().inflate(R.menu.menu_call_log, menu);
 
-            int itemId;
-            if (mSortType == PhoneCallLogAdapter.SORT_BY_NUM)
-                itemId = R.id.action_sort_num;
-            else
-                itemId = R.id.action_sort_time;
-            MenuItem sortMenuItem = menu.findItem(itemId);
-            sortMenuItem.setChecked(true);
-        }
+        int itemId;
+        if (mSortType == CallLogAdapter.SORT_BY_NUM)
+            itemId = R.id.action_sort_num;
+        else
+            itemId = R.id.action_sort_time;
+        MenuItem sortMenuItem = menu.findItem(itemId);
+        sortMenuItem.setChecked(true);
 
         return true;
     }
@@ -312,14 +153,19 @@ public class CallLogActivity extends AppCompatActivity {
 
         if (id == R.id.action_sort_time) {
             item.setChecked(true);
-            updateSortType(PhoneCallLogAdapter.SORT_BY_TIME);
+            updateSortType(CallLogAdapter.SORT_BY_TIME);
             return true;
         }
 
         if (id == R.id.action_sort_num) {
             item.setChecked(true);
-            updateSortType(PhoneCallLogAdapter.SORT_BY_NUM);
+            updateSortType(CallLogAdapter.SORT_BY_NUM);
             return true;
+        }
+
+        if (id == R.id.action_clear_log) {
+                clear_Log();
+                return true;
         }
 
         return super.onOptionsItemSelected(item);
@@ -379,7 +225,7 @@ public class CallLogActivity extends AppCompatActivity {
         if (view.getId() == R.id.list_call_log) {
             ListView lv = (ListView) view;
             AdapterView.AdapterContextMenuInfo acmi = (AdapterView.AdapterContextMenuInfo) menuInfo;
-            PhoneCallLog pcl = (PhoneCallLog) lv.getItemAtPosition(acmi.position);
+            CallLog pcl = (CallLog) lv.getItemAtPosition(acmi.position);
             String phoneNumber = pcl.getPhoneNumber();
             boolean isNumber = pcl.getIsNumber();
 
@@ -403,7 +249,7 @@ public class CallLogActivity extends AppCompatActivity {
                     contactMesg = "Contact name: " + contactName;
 
                 boolean use_c_code = isUseCcode(phoneNumber);
-                mPrefixActions = mDbHelper.getPrefixActions(phoneNumber, use_c_code);
+                mPrefixActions = mActionDbHelper.getPrefixActions(phoneNumber, use_c_code);
 
                 menu.setHeaderTitle("Phone number " + phoneNumber);
                 menu.add(CONTEXT_MENU_CONTACT, 0, Menu.NONE, contactMesg);
@@ -427,7 +273,7 @@ public class CallLogActivity extends AppCompatActivity {
     @Override
     public boolean onContextItemSelected(MenuItem item) {
         AdapterView.AdapterContextMenuInfo acmi = (AdapterView.AdapterContextMenuInfo)item.getMenuInfo();
-        PhoneCallLog pcl = (PhoneCallLog) mAdapter.getItem(acmi.position);
+        CallLog pcl = (CallLog) mAdapter.getItem(acmi.position);
         String phoneNumber = pcl.getPhoneNumber();
 
         int itemId = item.getItemId();
@@ -508,7 +354,7 @@ public class CallLogActivity extends AppCompatActivity {
     };
 
     private void debugAsyncBlock() {
-        Log.d(mLogTAG, "AsyncBlock = " + String.valueOf(mAsyncBlock));
+        Log.d(mLogTAG, "AsyncBlock = " + mAsyncBlock);
     }
 
     @Override
@@ -548,5 +394,24 @@ public class CallLogActivity extends AppCompatActivity {
         boolean use_c_code = (set_ccode_type == 1 || set_ccode_type == 2 && phoneNumber.startsWith("+"));
 
         return use_c_code;
+    }
+
+    private void clear_Log() {
+        String message = "Clearing log!\n" + "Proceed?";
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Clear log")
+                .setMessage(message)
+                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        mCallLogDbHelper.removeAll();
+                        mAdapter.clear();
+                        mAdapter.notifyDataSetChanged();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .create();
+        dialog.show();
+        mDialogNow = dialog;
     }
 }

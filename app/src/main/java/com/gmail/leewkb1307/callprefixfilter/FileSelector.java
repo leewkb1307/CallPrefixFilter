@@ -1,9 +1,9 @@
 package com.gmail.leewkb1307.callprefixfilter;
 
 import android.content.DialogInterface;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.app.AlertDialog.Builder;
-import android.support.v7.app.AppCompatActivity;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AlertDialog.Builder;
+import androidx.appcompat.app.AppCompatActivity;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
@@ -18,6 +18,7 @@ import android.widget.Toast;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Objects;
 import java.util.TreeSet;
 
 class FileSelector {
@@ -134,7 +135,7 @@ class FileSelector {
             // find em all
             TreeSet<String> dirs = new TreeSet<>();
             TreeSet<String> files = new TreeSet<>();
-            for(File file : path.listFiles()) {
+            for(File file : Objects.requireNonNull(path.listFiles())) {
                 if(!file.canRead())
                     continue;
                 if(file.isDirectory()) {

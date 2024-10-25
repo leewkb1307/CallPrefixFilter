@@ -1,7 +1,7 @@
 package com.gmail.leewkb1307.callprefixfilter;
 
 import android.content.Context;
-import android.preference.PreferenceManager;
+import androidx.preference.PreferenceManager;
 
 class PrefLongerThan extends PrefBlockLen {
     public PrefLongerThan(Context context) {

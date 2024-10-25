@@ -1,39 +1,36 @@
 package com.gmail.leewkb1307.callprefixfilter;
 
 import android.Manifest;
-import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
-import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.AsyncTask;
-import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
-import android.preference.PreferenceManager;
-import android.support.annotation.NonNull;
-import android.support.design.widget.FloatingActionButton;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
-import android.support.v4.view.GestureDetectorCompat;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
+
+import androidx.preference.PreferenceManager;
+import androidx.annotation.NonNull;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.core.view.GestureDetectorCompat;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
+
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.Window;
 import android.view.WindowManager;
 import android.widget.ListView;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -48,12 +45,8 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
-import java.util.regex.Pattern;
 
 import static android.os.AsyncTask.Status.RUNNING;
-import static android.os.Build.VERSION_CODES.JELLY_BEAN;
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR1;
 
 public class MainActivity extends AppCompatActivity {
     private ActionDbHelper mDbHelper;
@@ -63,6 +56,7 @@ public class MainActivity extends AppCompatActivity {
     private GestureDetectorCompat mDetector;
     private ChangedReceiver mChangedReceiver;
     private AsyncTaskReceiver mAsyncTaskReceiver;
+    private RequesterHelper mRequester;
     private boolean mIsInited;
     private boolean mDbRefresh;
     private int mSortType;
@@ -74,29 +68,24 @@ public class MainActivity extends AppCompatActivity {
     private importing_CSV mImportTask;
     private clearing_Rules mClearTask;
     private boolean mIsExited;
-    private final int MY_PERMISSIONS_REQUEST_READ_PHONE_STATE = 1;
     private final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 2;
     private final int MY_PERMISSIONS_REQUEST_WRITE_FILE = 4;
     private final int MY_PERMISSIONS_REQUEST_READ_FILE = 5;
 
-    private final String mLogTAG = "CPF MainActivity";
+    private final String mLogTAG = "MainActivity";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        setTheme(R.style.AppTheme_NoActionBar);
+        setTheme(R.style.Theme_CallPrefixFilter);
         super.onCreate(savedInstanceState);
 
         mIsInited = false;
         mIsExited = false;
 
-        // check that we can read phone state
-        if (isCallFilterPermitted()) {
-            InitMainList();
-        } else {
-            ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.READ_PHONE_STATE},
-                    MY_PERMISSIONS_REQUEST_READ_PHONE_STATE);
-        }
+        mRequester = new RequesterHelper(this);
+        mRequester.registerOnResultCallback(onResultCallback);
+
+        InitMainList();
     }
 
     @Override
@@ -135,19 +124,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    @Override
-    public Object onRetainCustomNonConfigurationInstance() {
-        return ((mAdapter == null) ? null : mAdapter.getItemAll());
-    }
-
-    private boolean isCallFilterPermitted() {
-        Context context = getApplicationContext();
-
-        return ContextCompat.checkSelfPermission(context,
-                Manifest.permission.READ_PHONE_STATE)
-                == PackageManager.PERMISSION_GRANTED;
-    }
-
     private boolean isReadContactsPermitted() {
         Context context = getApplicationContext();
 
@@ -165,9 +141,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private boolean isReadFilePermitted() {
-        if (Build.VERSION.SDK_INT < JELLY_BEAN)
-            return true;
-
         Context context = getApplicationContext();
 
         return ContextCompat.checkSelfPermission(context,
@@ -175,7 +148,6 @@ public class MainActivity extends AppCompatActivity {
                 == PackageManager.PERMISSION_GRANTED;
     }
 
-    @TargetApi(Build.VERSION_CODES.JELLY_BEAN)
     private void requestReadFilePermission() {
         ActivityCompat.requestPermissions(this,
                 new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},
@@ -185,12 +157,7 @@ public class MainActivity extends AppCompatActivity {
     private void InitMainList() {
         setContentView(R.layout.activity_main);
 
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-
         mDbRefresh = false;
-
-        boolean isAppReady = isCallFilterPermitted();
 
         mDialog = new PrefixActionDialog(this);
         mDialog.registerCallback(onPrefixModified);
@@ -198,55 +165,32 @@ public class MainActivity extends AppCompatActivity {
         mDbHelper = new ActionDbHelper(this);
 
         mSortChange = false;
-        if (isAppReady) {
-            mChangedReceiver = new ChangedReceiver();
-            mChangedReceiver.setChangedListener(onFilterChanged);
 
-            IntentFilter intentFilter = new IntentFilter();
-            intentFilter.addAction(ChangedReceiver.ACTION_FILTER_CHANGED);
-            registerReceiver(mChangedReceiver, intentFilter);
+        mChangedReceiver = new ChangedReceiver();
+        mChangedReceiver.setChangedListener(onFilterChanged);
 
-            mAsyncTaskReceiver = new AsyncTaskReceiver();
-            mAsyncTaskReceiver.setAsyncTaskListener(onAsyncTaskChanged);
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(ChangedReceiver.ACTION_FILTER_CHANGED);
+        registerReceiver(mChangedReceiver, intentFilter);
 
-            intentFilter = new IntentFilter();
-            intentFilter.addAction(AsyncTaskReceiver.ACTION_ASYNC_ENQUIRY);
-            registerReceiver(mAsyncTaskReceiver, intentFilter);
+        mAsyncTaskReceiver = new AsyncTaskReceiver();
+        mAsyncTaskReceiver.setAsyncTaskListener(onAsyncTaskChanged);
 
-            Context context = getApplicationContext();
-            Resources res = context.getResources();
-            SharedPreferences sharedPref = context.getSharedPreferences(
-                    res.getString(R.string.option_file_name), Context.MODE_PRIVATE);
-            String sharedPref_key_id = res.getString(R.string.option_file_key_type);
-            mSortType = sharedPref.getInt(sharedPref_key_id, PrefixActionAdapter.SORT_BY_ID);
+        intentFilter = new IntentFilter();
+        intentFilter.addAction(AsyncTaskReceiver.ACTION_ASYNC_ENQUIRY);
+        registerReceiver(mAsyncTaskReceiver, intentFilter);
 
-            ArrayList<PrefixAction> prefixActions;
-            try {
-                prefixActions = (ArrayList<PrefixAction>) getLastCustomNonConfigurationInstance();
-            }
-            catch (Exception e) {
-                prefixActions = null;
-            }
-            if (prefixActions != null) {
-                mAdapter = new PrefixActionAdapter(MainActivity.this, prefixActions);
-            }
-            if (mAdapter == null) {
-                // load filter rules
-                updateMainList();
-            }
-            else {
-                // use the passed filter rules, it is already sorted!
-                setMainListAdapter();
-                InitMainList2();
-            }
+        Context context = getApplicationContext();
+        Resources res = context.getResources();
+        SharedPreferences sharedPref = context.getSharedPreferences(
+                res.getString(R.string.option_file_name), Context.MODE_PRIVATE);
+        String sharedPref_key_id = res.getString(R.string.option_file_key_type);
+        mSortType = sharedPref.getInt(sharedPref_key_id, PrefixActionAdapter.SORT_BY_ID);
 
-            mDetector = new GestureDetectorCompat(this, new SwipeGestureListener(this).setSwipeListener(onSwipe));
-        }
-        else {
-            TextView tview = (TextView) findViewById(R.id.text_filter_error);
-            if (tview != null)
-                tview.setVisibility(View.VISIBLE);
-        }
+        // load filter rules
+        updateMainList();
+
+        mDetector = new GestureDetectorCompat(this, new SwipeGestureListener(this).setSwipeListener(onSwipe));
     }
 
     private void InitMainList2() {
@@ -267,23 +211,15 @@ public class MainActivity extends AppCompatActivity {
                 fab.setVisibility(View.VISIBLE);
             }
 
-            // check that we can read contact list
-            if (!isReadContactsPermitted()) {
-                ActivityCompat.requestPermissions(MainActivity.this,
-                        new String[]{Manifest.permission.READ_CONTACTS},
-                        MY_PERMISSIONS_REQUEST_READ_CONTACTS);
-            }
+            mRequester.requestRole();
         }
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode,
-                                           @NonNull String permissions[], @NonNull int[] grantResults) {
+                                           @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         switch (requestCode) {
-            case MY_PERMISSIONS_REQUEST_READ_PHONE_STATE: {
-                InitMainList();
-                break;
-            }
             case MY_PERMISSIONS_REQUEST_READ_CONTACTS: {
                 boolean granted_contacts = (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED);
                 onContactsPermissionsResult(granted_contacts);
@@ -293,9 +229,8 @@ public class MainActivity extends AppCompatActivity {
                 boolean granted_contacts = (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED);
                 if (granted_contacts) {
                     export_CSV();
-                }
-                else {
-                    String message[] = {"Not permitted to write file!", null};
+                } else {
+                    String[] message = {"Not permitted to write file!", null};
                     export_CSV_Dialog(message);
                 }
                 break;
@@ -304,15 +239,28 @@ public class MainActivity extends AppCompatActivity {
                 boolean granted_contacts = (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED);
                 if (granted_contacts) {
                     import_CSV();
-                }
-                else {
-                    String message[] = {"Not permitted to read file!", null};
+                } else {
+                    String[] message = {"Not permitted to read file!", null};
                     import_CSV_Dialog(message);
                 }
                 break;
             }
         }
     }
+
+    private RequesterHelper.Callback onResultCallback = new RequesterHelper.Callback() {
+        @Override
+        public void onResult(boolean isSuccess) {
+            if (isSuccess) {
+                // check that we can read contact list
+                if (!isReadContactsPermitted()) {
+                    ActivityCompat.requestPermissions(MainActivity.this,
+                            new String[]{Manifest.permission.READ_CONTACTS},
+                            MY_PERMISSIONS_REQUEST_READ_CONTACTS);
+                }
+            }
+        }
+    };
 
     private interface foo {
         void bar();
@@ -384,21 +332,20 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
-        if (isCallFilterPermitted()) {
-            getMenuInflater().inflate(R.menu.menu_main, menu);
+        getMenuInflater().inflate(R.menu.menu_main, menu);
 
-            int itemId;
-            if (mSortType == PrefixActionAdapter.SORT_BY_ID)
-                itemId = R.id.action_sort_not;
-            else if (mSortType == PrefixActionAdapter.SORT_BY_PFX_ASC)
-                itemId = R.id.action_sort_pfx;
-            else if (mSortType == PrefixActionAdapter.SORT_BY_CC_PFX_ASC)
-                itemId = R.id.action_sort_cc_pfx;
-            else
-                itemId = 0;
-            MenuItem sortMenuItem = menu.findItem(itemId);
-            sortMenuItem.setChecked(true);
-        }
+        int itemId;
+        if (mSortType == PrefixActionAdapter.SORT_BY_ID)
+            itemId = R.id.action_sort_not;
+        else if (mSortType == PrefixActionAdapter.SORT_BY_PFX_ASC)
+            itemId = R.id.action_sort_pfx;
+        else if (mSortType == PrefixActionAdapter.SORT_BY_CC_PFX_ASC)
+            itemId = R.id.action_sort_cc_pfx;
+        else
+            itemId = 0;
+        MenuItem sortMenuItem = menu.findItem(itemId);
+        sortMenuItem.setChecked(true);
+
         return true;
     }
 
@@ -480,7 +427,7 @@ public class MainActivity extends AppCompatActivity {
                 if (isReadFilePermitted()) {
                     import_CSV();
                 }
-                else if (Build.VERSION.SDK_INT >= JELLY_BEAN) {
+                else {
                     requestReadFilePermission();
                 }
                 return true;
@@ -703,11 +650,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private boolean isExited() {
-        if (Build.VERSION.SDK_INT >= JELLY_BEAN_MR1) {
-            return mIsExited || isDestroyed() || isFinishing();
-        } else {
-            return mIsExited || isFinishing();
-        }
+        return mIsExited || isDestroyed() || isFinishing();
     }
 
     private void broadcastAsyncState(int state) {
@@ -784,27 +727,31 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void keepWindowScreenOn(boolean enable) {
+        int flags = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
+        Window mainWindow = getWindow();
+
+        if (enable) {
+            mainWindow.addFlags(flags);
+        } else {
+            mainWindow.clearFlags(flags);
+        }
+    }
+
     private class loading_rules extends AsyncTask<Void, Void, ArrayList<PrefixAction>> {
-        private ProgressBar mProgressBar;
-        private TextView mProgressText;
+        private MainProgress mProgress;
 
         public loading_rules() {
+            mProgress = new MainProgress(MainActivity.this);
         }
 
         @Override
         protected void onPreExecute() {
             Log.d(mLogTAG, "loading_rules() Start");
 
-            mProgressText = (TextView) findViewById(R.id.text_progress_title);
-            if (mProgressText != null) {
-                mProgressText.setText(R.string.mesg_prg_loading);
-                mProgressText.setVisibility(View.VISIBLE);
-            }
-            mProgressBar = (ProgressBar) findViewById(R.id.progressBar_main);
-            if (mProgressBar != null) {
-                mProgressBar.setIndeterminate(true);
-                mProgressBar.setVisibility(View.VISIBLE);
-            }
+            mProgress.setText(R.string.mesg_prg_loading);
+            mProgress.setBar(false);
+            mProgress.setVisible(true);
         }
 
         @Override
@@ -817,12 +764,7 @@ public class MainActivity extends AppCompatActivity {
             Log.d(mLogTAG, "loading_rules() End");
 
             if (!isExited()) {
-                if (mProgressText != null) {
-                    mProgressText.setVisibility(View.GONE);
-                }
-                if (mProgressBar != null) {
-                    mProgressBar.setVisibility(View.GONE);
-                }
+                mProgress.setVisible(false);
 
                 mAdapter = new PrefixActionAdapter(MainActivity.this, prefixActions);
                 setMainListAdapter();
@@ -839,31 +781,8 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void lockScreenOrientationPref() {
-        SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
-        boolean lock_screen = sharedPref.getBoolean("prefOpLockScreen", false);
-
-        if (lock_screen) {
-            lockScreenOrientation();
-        }
-    }
-
-    private void lockScreenOrientation() {
-        int currentOrientation = getResources().getConfiguration().orientation;
-        if (currentOrientation == Configuration.ORIENTATION_LANDSCAPE) {
-            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
-        }
-        else {
-            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-        }
-    }
-
-    private void unlockScreenOrientation() {
-        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
-    }
-
     private void export_CSV() {
-        File pathInit = getInitPath(true);
+        File pathInit = getInitPath();
         FileSelector selectDialog = new FileSelector(this, "Export CSV", pathInit);
 
         Calendar rightNow = Calendar.getInstance();
@@ -908,37 +827,26 @@ public class MainActivity extends AppCompatActivity {
     private class exporting_CSV extends AsyncTask<Void, Integer, String[]> {
         private File mDirectory;
         private String mFilename;
-        private ProgressBar mProgressBar;
-        private TextView mProgressText;
+        private MainProgress mProgress;
 
         public exporting_CSV(@NonNull File directory, @NonNull String filename) {
             mDirectory = directory;
             mFilename = filename;
+            mProgress = new MainProgress(MainActivity.this);
         }
 
         @Override
         protected void onPreExecute() {
-            lockScreenOrientationPref();
+            keepWindowScreenOn(true);
 
-            int setFlags = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
-            getWindow().addFlags(setFlags);
-
-            mProgressText = (TextView) findViewById(R.id.text_progress_title);
-            if (mProgressText != null) {
-                mProgressText.setText(R.string.mesg_prg_exporting);
-                mProgressText.setVisibility(View.VISIBLE);
-            }
-            mProgressBar = (ProgressBar) findViewById(R.id.progressBar_main);
-            if (mProgressBar != null) {
-                mProgressBar.setIndeterminate(false);
-                mProgressBar.setProgress(0);
-                mProgressBar.setVisibility(View.VISIBLE);
-            }
+            mProgress.setText(R.string.mesg_prg_exporting);
+            mProgress.setBar(true);
+            mProgress.setVisible(true);
         }
 
         @Override
         protected String[] doInBackground(Void... params) {
-            String result[] = {"Success", null};
+            String[] result = {"Success", null};
 
             try {
                 File saveFilePath = new File (mDirectory, mFilename);
@@ -955,19 +863,7 @@ public class MainActivity extends AppCompatActivity {
                         break;
                     }
                     PrefixAction prefixAction = (PrefixAction) mAdapter.getItem(n);
-                    String action = prefixAction.getAction();
-                    String prefix = prefixAction.getPrefix();
-                    String c_code = prefixAction.getC_Code();
-                    boolean is_exact = prefixAction.getExact();
-                    String str_action = (action.equals(PrefixAction.ACTION_ALLOW)) ? "allow" : "block";
-                    String str_exact = (is_exact) ? "true" : "false";
-                    if (prefix.contains(",")) {
-                        prefix = "\"" + prefix + "\"";
-                    }
-                    if (c_code.contains(",")) {
-                        c_code = "\"" + c_code + "\"";
-                    }
-                    String csv_line = str_action + "," + c_code + "," + prefix + "," + str_exact + "\n";
+                    String csv_line = Convert.prefixAction2TextLine(prefixAction);
                     outputWriter.write(csv_line);
 
                     if (progressCnt.increment()) {
@@ -1008,26 +904,16 @@ public class MainActivity extends AppCompatActivity {
         protected void onProgressUpdate(Integer... values) {
             broadcastAsyncProgress(values[0]);
             if (!isCancelled()) {
-                if (mProgressBar != null) {
-                    mProgressBar.setProgress(values[0]);
-                }
+                mProgress.setProgress(values[0]);
             }
         }
 
         @Override
-        protected void onPostExecute(String result[]) {
+        protected void onPostExecute(String[] result) {
             if (!isExited()) {
-                if (mProgressText != null) {
-                    mProgressText.setVisibility(View.GONE);
-                }
-                if (mProgressBar != null) {
-                    mProgressBar.setVisibility(View.GONE);
-                }
+                mProgress.setVisible(false);
 
-                int clrFlags = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
-                getWindow().clearFlags(clrFlags);
-
-                unlockScreenOrientation();
+                keepWindowScreenOn(false);
 
                 export_CSV_Dialog(result);
 
@@ -1036,39 +922,16 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void export_CSV_Dialog(String message[]) {
+    private void export_CSV_Dialog(String[] message) {
         common_Result_Dialog("Export CSV", message);
     }
 
-    private File getInitPath(boolean canWrite) {
-        File initPath = null;
-        ArrayList<String> publicList = new ArrayList<>();
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            publicList.add(Environment.DIRECTORY_DOCUMENTS);
-        }
-        publicList.add(Environment.DIRECTORY_DOWNLOADS);
-
-        for (String path : publicList) {
-            File publicPath = Environment.getExternalStoragePublicDirectory(path);
-
-            if (publicPath.exists() && publicPath.isDirectory() && publicPath.canRead()) {
-                if (!canWrite || publicPath.canWrite()) {
-                    initPath = publicPath;
-                    break;
-                }
-            }
-        }
-
-        if (initPath == null) {
-            initPath = Environment.getExternalStorageDirectory();
-        }
-
-        return initPath;
+    private File getInitPath() {
+        return getExternalFilesDir(null);
     }
 
     private void import_CSV() {
-        File pathInit = getInitPath(false);
+        File pathInit = getInitPath();
         FileSelector selectDialog = new FileSelector(this, "Import CSV", pathInit);
         selectDialog.setFileListener(new FileSelector.FileSelectedListener() {
             @Override
@@ -1089,40 +952,28 @@ public class MainActivity extends AppCompatActivity {
     private class reading_CSV extends AsyncTask<Void, Void, String[]> {
         private File mDirectory;
         private String mFilename;
-        private ProgressBar mProgressBar;
-        private TextView mProgressText;
         private ArrayList<PrefixAction> mPrefixActions;
+        private MainProgress mProgress;
 
         public reading_CSV(@NonNull File directory, @NonNull String filename) {
             mDirectory = directory;
             mFilename = filename;
             mPrefixActions = new ArrayList<>();
+            mProgress = new MainProgress(MainActivity.this);
         }
 
         @Override
         protected void onPreExecute() {
-            lockScreenOrientationPref();
+            keepWindowScreenOn(true);
 
-            int setFlags = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
-            getWindow().addFlags(setFlags);
-
-            mProgressText = (TextView) findViewById(R.id.text_progress_title);
-            if (mProgressText != null) {
-                mProgressText.setText(R.string.mesg_prg_reading);
-                mProgressText.setVisibility(View.VISIBLE);
-            }
-            mProgressBar = (ProgressBar) findViewById(R.id.progressBar_main);
-            if (mProgressBar != null) {
-                mProgressBar.setIndeterminate(true);
-                mProgressBar.setVisibility(View.VISIBLE);
-            }
+            mProgress.setText(R.string.mesg_prg_reading);
+            mProgress.setBar(false);
+            mProgress.setVisible(true);
         }
 
         @Override
         protected String[] doInBackground(Void... params) {
-            String result[] = {"Success", null};
-
-            boolean is_CPF_CSV = false;
+            String[] result = {"Success", null};
 
             try {
                 File loadFilePath = new File (mDirectory, mFilename);
@@ -1130,115 +981,32 @@ public class MainActivity extends AppCompatActivity {
                 FileReader inputReader=new FileReader(loadFilePath);
                 BufferedReader bufferedReader = new BufferedReader(inputReader);
 
-                String strPhone = "[0-9\\+\\*#\\- \\.,;\\(\\)/N]+";
-                Pattern pattern = Pattern.compile(strPhone);
+                Convert convertor = new Convert();
 
-                Long line_num = 0L;
+                long line_num = 0L;
                 String text_line;
 
                 while (!isCancelled() && (text_line = bufferedReader.readLine()) != null) {
                     line_num++;
 
-                    // parse the text line to tokens
-                    List<String> wordList = new ArrayList<>();
-                    while (text_line != null && !text_line.isEmpty()) {
-                        try {
-                            String[] keywords;
-                            if (text_line.startsWith("\"")) {
-                                // handle double quotes
-                                keywords = text_line.substring(1).split("\",?", 2);
-                            }
-                            else {
-                                // handle comma
-                                keywords = text_line.split(",", 2);
-                            }
-                            wordList.add(keywords[0]);
-                            text_line = keywords[1];
+                    int errorCode;
+
+                    if (line_num > 1) {
+                        PrefixAction prefixAction = convertor.textLine2PrefixAction(text_line);
+                        if (prefixAction != null) {
+                            mPrefixActions.add(prefixAction);
                         }
-                        catch (ArrayIndexOutOfBoundsException e) {
-                            text_line = null;
-                        }
+                        errorCode = convertor.getErrorCode();
+                    } else {
+                        errorCode = Convert.checkCSVheader(text_line);
                     }
 
-                    if (wordList.size() < 4) {
-                        result[0] = "CSV file line number " + String.valueOf(line_num) + " has less than 4 fields.";
+                    if (errorCode != Convert.ERROR_NONE) {
+                        result[0] = "Line " + line_num + ": " + Convert.getErrorMessage(errorCode);
                         break;
                     }
-
-                    if (wordList.size() > 4) {
-                        result[0] = "CSV file line number " + String.valueOf(line_num) + " has more than 4 fields.";
-                        break;
-                    }
-
-                    String str_action = wordList.get(0);
-                    String str_c_code = wordList.get(1);
-                    String str_prefix = wordList.get(2);
-                    String str_exact  = wordList.get(3);
-
-                    if (!is_CPF_CSV) {
-                        if (str_action.equals("action") && str_c_code.equals("c_code") && str_prefix.equals("prefix") && str_exact.equals("exact")) {
-                            is_CPF_CSV = true;
-                            continue;
-                        }
-                        else {
-                            break;
-                        }
-                    }
-
-                    if (str_prefix.isEmpty() && str_c_code.isEmpty()) {
-                        result[0] = "CSV file line number " + String.valueOf(line_num) + " has no valid prefix.";
-                        break;
-                    }
-
-                    PrefixAction prefixAction = new PrefixAction();
-                    String action;
-                    if (str_action.isEmpty() || str_action.equals("block")) {
-                        action = PrefixAction.ACTION_BLOCK;
-                    }
-                    else if (str_action.equals("allow")) {
-                        action = PrefixAction.ACTION_ALLOW;
-                    }
-                    else {
-                        result[0] = "CSV file line number " + String.valueOf(line_num) + " action field is invalid.";
-                        break;
-                    }
-                    prefixAction.setAction(action);
-                    if (!str_c_code.isEmpty() && !pattern.matcher(str_c_code).matches()) {
-                        result[0] = "CSV file line number " + String.valueOf(line_num) + " c_code field is invalid.";
-                        break;
-                    }
-                    prefixAction.setC_Code(str_c_code);
-                    if (!str_prefix.isEmpty() && !pattern.matcher(str_prefix).matches()) {
-                        result[0] = "CSV file line number " + String.valueOf(line_num) + " prefix field is invalid.";
-                        break;
-                    }
-                    prefixAction.setPrefix(str_prefix);
-                    boolean is_exact;
-                    if (str_exact.isEmpty() || str_exact.equals("false")) {
-                        is_exact = false;
-                    }
-                    else if (str_exact.equals("true")) {
-                        is_exact = true;
-                    }
-                    else if (str_exact.equals("FALSE")) {
-                        is_exact = false;
-                    }
-                    else if (str_exact.equals("TRUE")) {
-                        is_exact = true;
-                    }
-                    else {
-                        result[0] = "CSV file line number " + String.valueOf(line_num) + " exact field is invalid.";
-                        break;
-                    }
-                    prefixAction.setExact(is_exact);
-
-                    mPrefixActions.add(prefixAction);
                 }
                 inputReader.close();
-
-                if (!is_CPF_CSV && line_num <= 1L) {
-                    result[0] = "Invalid CSV file format.";
-                }
             } catch (IOException ioe) {
                 ioe.printStackTrace();
 
@@ -1263,19 +1031,11 @@ public class MainActivity extends AppCompatActivity {
         }
 
         @Override
-        protected void onPostExecute(String result[]) {
+        protected void onPostExecute(String[] result) {
             if (!isExited()) {
-                if (mProgressText != null) {
-                    mProgressText.setVisibility(View.GONE);
-                }
-                if (mProgressBar != null) {
-                    mProgressBar.setVisibility(View.GONE);
-                }
+                mProgress.setVisible(false);
 
-                int clrFlags = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
-                getWindow().clearFlags(clrFlags);
-
-                unlockScreenOrientation();
+                keepWindowScreenOn(false);
 
                 if (result[0].equals("Success")) {
                     check_CSV(mPrefixActions);
@@ -1295,33 +1055,22 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private class checking_CSV extends AsyncTask<Void, Integer, Integer[]> {
-        private ProgressBar mProgressBar;
-        private TextView mProgressText;
+        private MainProgress mProgress;
         private ArrayList<PrefixAction> mPrefixActions;
         private ArrayList<PrefixAction> mPrefixDelta;
 
         public checking_CSV(@NonNull ArrayList<PrefixAction> prefixActions) {
+            mProgress = new MainProgress(MainActivity.this);
             mPrefixActions = prefixActions;
         }
 
         @Override
         protected void onPreExecute() {
-            lockScreenOrientationPref();
+            keepWindowScreenOn(true);
 
-            int setFlags = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
-            getWindow().addFlags(setFlags);
-
-            mProgressText = (TextView) findViewById(R.id.text_progress_title);
-            if (mProgressText != null) {
-                mProgressText.setText(R.string.mesg_prg_checking);
-                mProgressText.setVisibility(View.VISIBLE);
-            }
-            mProgressBar = (ProgressBar) findViewById(R.id.progressBar_main);
-            if (mProgressBar != null) {
-                mProgressBar.setIndeterminate(false);
-                mProgressBar.setProgress(0);
-                mProgressBar.setVisibility(View.VISIBLE);
-            }
+            mProgress.setText(R.string.mesg_prg_checking);
+            mProgress.setBar(true);
+            mProgress.setVisible(true);
         }
 
         @Override
@@ -1390,7 +1139,7 @@ public class MainActivity extends AppCompatActivity {
                 mPrefixDelta.set(index, prefixAction1);
             }
 
-            Integer result[] = new Integer[2];
+            Integer[] result = new Integer[2];
             result[0] = countNew;
             result[1] = countChange;
             return result;
@@ -1400,26 +1149,16 @@ public class MainActivity extends AppCompatActivity {
         protected void onProgressUpdate(Integer... values) {
             broadcastAsyncProgress(values[0]);
             if (!isCancelled()) {
-                if (mProgressBar != null) {
-                    mProgressBar.setProgress(values[0]);
-                }
+                mProgress.setProgress(values[0]);
             }
         }
 
         @Override
-        protected void onPostExecute(Integer result[]) {
+        protected void onPostExecute(Integer[] result) {
             if (!isExited()) {
-                if (mProgressText != null) {
-                    mProgressText.setVisibility(View.GONE);
-                }
-                if (mProgressBar != null) {
-                    mProgressBar.setVisibility(View.GONE);
-                }
+                mProgress.setVisible(false);
 
-                int clrFlags = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
-                getWindow().clearFlags(clrFlags);
-
-                unlockScreenOrientation();
+                keepWindowScreenOn(false);
 
                 int countNew = result[0];
                 int countChange = result[1];
@@ -1427,10 +1166,10 @@ public class MainActivity extends AppCompatActivity {
                 if (countNew > 0 || countChange > 0) {
                     String message = "";
                     if (countNew > 0) {
-                        message = "New = " + String.valueOf(countNew) + "\n";
+                        message = "New = " + countNew + "\n";
                     }
                     if (countChange > 0) {
-                        message = message + "Change = " + String.valueOf(countChange) + "\n";
+                        message = message + "Change = " + countChange + "\n";
                     }
                     message = message + "Proceed?";
                     AlertDialog dialog = new AlertDialog.Builder(MainActivity.this)
@@ -1459,7 +1198,7 @@ public class MainActivity extends AppCompatActivity {
                     mDialogNow = dialog;
                 }
                 else {
-                    String message[] = {"No change", null};
+                    String[] message = {"No change", null};
                     import_CSV_Dialog(message);
                 }
 
@@ -1474,41 +1213,30 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private class importing_CSV extends AsyncTask<Void, Integer, String[]> {
-        private ProgressBar mProgressBar;
-        private TextView mProgressText;
         private ArrayList<PrefixAction> mPrefixActions;
         private ArrayList<PrefixAction> mPrefixNew;
         private ArrayList<PrefixAction> mPrefixChange;
+        private MainProgress mProgress;
 
         public importing_CSV(@NonNull ArrayList<PrefixAction> prefixActions) {
             mPrefixActions = prefixActions;
             mPrefixNew = new ArrayList<>();
             mPrefixChange = new ArrayList<>();
+            mProgress = new MainProgress(MainActivity.this);
         }
 
         @Override
         protected void onPreExecute() {
-            lockScreenOrientationPref();
+            keepWindowScreenOn(true);
 
-            int setFlags = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
-            getWindow().addFlags(setFlags);
-
-            mProgressText = (TextView) findViewById(R.id.text_progress_title);
-            if (mProgressText != null) {
-                mProgressText.setText(R.string.mesg_prg_importing);
-                mProgressText.setVisibility(View.VISIBLE);
-            }
-            mProgressBar = (ProgressBar) findViewById(R.id.progressBar_main);
-            if (mProgressBar != null) {
-                mProgressBar.setIndeterminate(false);
-                mProgressBar.setProgress(0);
-                mProgressBar.setVisibility(View.VISIBLE);
-            }
+            mProgress.setText(R.string.mesg_prg_importing);
+            mProgress.setBar(true);
+            mProgress.setVisible(true);
         }
 
         @Override
         protected String[] doInBackground(Void... params) {
-            String result[] = {"Success", null};
+            String[] result = {"Success", null};
             boolean isSuccess = true;
             PercentCounter progressCnt = new PercentCounter(mPrefixActions.size());
             long row_id;
@@ -1559,19 +1287,15 @@ public class MainActivity extends AppCompatActivity {
         protected void onProgressUpdate(Integer... values) {
             broadcastAsyncProgress(values[0]);
             if (!isCancelled()) {
-                if (mProgressBar != null) {
-                    mProgressBar.setProgress(values[0]);
-                }
+                mProgress.setProgress(values[0]);
                 if (values[0] >= 100) {
-                    if (mProgressText != null) {
-                        mProgressText.setText(R.string.mesg_prg_writing);
-                    }
+                    mProgress.setText(R.string.mesg_prg_writing);
                 }
             }
         }
 
         @Override
-        protected void onPostExecute(String result[]) {
+        protected void onPostExecute(String[] result) {
             if (!isExited()) {
                 int sizeCurr = mAdapter.getCount();
                 int indexCurr;
@@ -1595,17 +1319,9 @@ public class MainActivity extends AppCompatActivity {
                 }
                 refreshMainList();
 
-                if (mProgressText != null) {
-                    mProgressText.setVisibility(View.GONE);
-                }
-                if (mProgressBar != null) {
-                    mProgressBar.setVisibility(View.GONE);
-                }
+                mProgress.setVisible(false);
 
-                int clrFlags = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
-                getWindow().clearFlags(clrFlags);
-
-                unlockScreenOrientation();
+                keepWindowScreenOn(false);
 
                 import_CSV_Dialog(result);
 
@@ -1614,14 +1330,14 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void import_CSV_Dialog(String message[]) {
+    private void import_CSV_Dialog(String[] message) {
         common_Result_Dialog("Import CSV", message);
     }
 
     private void clear_Rules() {
-        Integer numRules = mAdapter.getCount();
+        int numRules = mAdapter.getCount();
         if (numRules > 0) {
-            String message = "Removing ALL " + numRules.toString() + " filter rules!\n" + "Proceed?";
+            String message = "Removing ALL " + numRules + " filter rules!\n" + "Proceed?";
             AlertDialog dialog = new AlertDialog.Builder(this)
                     .setTitle("Clear rules")
                     .setMessage(message)
@@ -1639,43 +1355,32 @@ public class MainActivity extends AppCompatActivity {
             mDialogNow = dialog;
         }
         else {
-            String message[] = {"No filter rule to remove.", null};
+            String[] message = {"No filter rule to remove.", null};
             clear_Rules_Dialog(message);
         }
     }
 
     private class clearing_Rules extends AsyncTask<Void, Integer, String[]> {
         private int mRemoveCnt;
-        private ProgressBar mProgressBar;
-        private TextView mProgressText;
+        private MainProgress mProgress;
 
         public clearing_Rules() {
             mRemoveCnt = 0;
+            mProgress = new MainProgress(MainActivity.this);
         }
 
         @Override
         protected void onPreExecute() {
-            lockScreenOrientationPref();
+            keepWindowScreenOn(true);
 
-            int setFlags = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
-            getWindow().addFlags(setFlags);
-
-            mProgressText = (TextView) findViewById(R.id.text_progress_title);
-            if (mProgressText != null) {
-                mProgressText.setText(R.string.mesg_prg_clearing);
-                mProgressText.setVisibility(View.VISIBLE);
-            }
-            mProgressBar = (ProgressBar) findViewById(R.id.progressBar_main);
-            if (mProgressBar != null) {
-                mProgressBar.setIndeterminate(false);
-                mProgressBar.setProgress(0);
-                mProgressBar.setVisibility(View.VISIBLE);
-            }
+            mProgress.setText(R.string.mesg_prg_clearing);
+            mProgress.setBar(true);
+            mProgress.setVisible(true);
         }
 
         @Override
         protected String[] doInBackground(Void... params) {
-            String result[] = {"Success", null};
+            String[] result = {"Success", null};
             boolean isSuccess = true;
 
             mDbHelper.beginWriteBatch();
@@ -1716,36 +1421,24 @@ public class MainActivity extends AppCompatActivity {
         protected void onProgressUpdate(Integer... values) {
             broadcastAsyncProgress(values[0]);
             if (!isCancelled()) {
-                if (mProgressBar != null) {
-                    mProgressBar.setProgress(values[0]);
-                }
+                mProgress.setProgress(values[0]);
                 if (values[0] >= 100) {
-                    if (mProgressText != null) {
-                        mProgressText.setText(R.string.mesg_prg_writing);
-                    }
+                    mProgress.setText(R.string.mesg_prg_writing);
                 }
             }
         }
 
         @Override
-        protected void onPostExecute(String result[]) {
+        protected void onPostExecute(String[] result) {
             if (!isExited()) {
                 while (mRemoveCnt > 0) {
                     mAdapter.remove(mRemoveCnt - 1);
                     mRemoveCnt--;
                 }
 
-                if (mProgressText != null) {
-                    mProgressText.setVisibility(View.GONE);
-                }
-                if (mProgressBar != null) {
-                    mProgressBar.setVisibility(View.GONE);
-                }
+                mProgress.setVisible(false);
 
-                int clrFlags = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
-                getWindow().clearFlags(clrFlags);
-
-                unlockScreenOrientation();
+                keepWindowScreenOn(false);
 
                 clear_Rules_Dialog(result);
 
@@ -1754,11 +1447,11 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void clear_Rules_Dialog(String message[]) {
+    private void clear_Rules_Dialog(String[] message) {
         common_Result_Dialog("Clear rules", message);
     }
 
-    private void common_Result_Dialog(String title, final String message[]) {
+    private void common_Result_Dialog(String title, final String[] message) {
         broadcastAsyncDone();
 
         AlertDialog dialog = new AlertDialog.Builder(this)

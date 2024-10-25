@@ -14,19 +14,9 @@
     tools:showIn="@layout/activity_main">
 
     <TextView
-        android:id="@+id/text_filter_error"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:visibility="gone"
-        android:text="@string/mesg_filter_not_permitted"
-        android:textSize="20sp"
-        android:padding="5dp" />
-
-    <TextView
         android:id="@+id/text_progress_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@+id/text_filter_error"
         android:visibility="gone"
         android:text="@string/mesg_prg_nil"
         android:textSize="20sp"

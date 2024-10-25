@@ -14,6 +14,7 @@
     <string name="action_op_export_csv">Export CSV</string>
     <string name="action_op_import_csv">Import CSV</string>
     <string name="action_op_clear_rules">Clear rules</string>
+    <string name="action_clear_log">Clear log</string>
     <string name="noti_file_name">com.gmail.leewkb1307.callprefixfilter.notifications.counters</string>
     <string name="noti_file_key_id">com.gmail.leewkb1307.callprefixfilter.notifications.counters.id</string>
     <string name="noti_file_key_pfx">com.gmail.leewkb1307.callprefixfilter.notifications.counters.pfx</string>
@@ -41,6 +42,5 @@
     <string name="diag_text_fname">Filename:</string>
     <string name="diag_text_ename">editname</string>
     <string name="diag_text_cpath">.</string>
-    <string name="mesg_filter_not_permitted">Call filter cannot function because it is not permitted to monitor phone calls.</string>
-    <string name="mesg_call_log_not_permitted">Not permitted to read call log…</string>
+    <string name="app_service">Call Screener</string>
 </resources>

@@ -3,7 +3,7 @@ package com.gmail.leewkb1307.callprefixfilter;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 
 class AsyncTaskReceiver extends BroadcastReceiver {
     public static final String ACTION_ASYNC_ENQUIRY  = "com.gmail.leewkb1307.callprefixfilter.ASYNC_ENQUIRY";

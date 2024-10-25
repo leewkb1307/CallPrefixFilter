@@ -1,41 +1,40 @@
 package com.gmail.leewkb1307.callprefixfilter;
 
 import android.Manifest;
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.pm.PackageManager;
-import android.os.Build;
 import android.os.Bundle;
-import android.preference.Preference;
-import android.preference.PreferenceFragment;
-import android.support.v4.content.ContextCompat;
+
+import androidx.annotation.NonNull;
+import androidx.preference.Preference;
+import androidx.preference.PreferenceFragmentCompat;
+import androidx.core.content.ContextCompat;
 import android.widget.Toast;
 
-@TargetApi(Build.VERSION_CODES.HONEYCOMB)
-public class SettingsFragment extends PreferenceFragment {
+import java.util.Objects;
+
+public class SettingsFragment extends PreferenceFragmentCompat {
     private Activity mActivity;
 
     @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-
-        addPreferencesFromResource(R.xml.settings);
+    public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
+        setPreferencesFromResource(R.xml.settings, rootKey);
 
         mActivity = getActivity();
 
         Preference pref = findPreference("prefAllowContacts");
-        pref.setOnPreferenceChangeListener(onAllowContactsChange);
+        Objects.requireNonNull(pref).setOnPreferenceChangeListener(onAllowContactsChange);
 
         Preference pref2 = findPreference("prefBlockShorter");
-        pref2.setOnPreferenceChangeListener(onBlockShorterChange);
+        Objects.requireNonNull(pref2).setOnPreferenceChangeListener(onBlockShorterChange);
 
         Preference pref3 = findPreference("prefBlockLonger");
-        pref3.setOnPreferenceChangeListener(onBlockLongerChange);
+        Objects.requireNonNull(pref3).setOnPreferenceChangeListener(onBlockLongerChange);
     }
 
     private Preference.OnPreferenceChangeListener onAllowContactsChange = new Preference.OnPreferenceChangeListener() {
         @Override
-        public boolean onPreferenceChange(Preference p,
+        public boolean onPreferenceChange(@NonNull Preference p,
                                           Object newValue) {
             if (newValue == Boolean.TRUE && !isReadContactsPermitted()) {
                 Toast.makeText(mActivity, "Not permitted to read contacts...", Toast.LENGTH_SHORT).show();
@@ -54,7 +53,7 @@ public class SettingsFragment extends PreferenceFragment {
 
     private Preference.OnPreferenceChangeListener onBlockShorterChange = new Preference.OnPreferenceChangeListener() {
         @Override
-        public boolean onPreferenceChange(Preference p,
+        public boolean onPreferenceChange(@NonNull Preference p,
                                           Object newValue) {
             boolean isValid = true;
             String errMesg = "";
@@ -87,7 +86,7 @@ public class SettingsFragment extends PreferenceFragment {
 
     private Preference.OnPreferenceChangeListener onBlockLongerChange = new Preference.OnPreferenceChangeListener() {
         @Override
-        public boolean onPreferenceChange(Preference p,
+        public boolean onPreferenceChange(@NonNull Preference p,
                                           Object newValue) {
             boolean isValid = true;
             String errMesg = "";

@@ -1,20 +1,18 @@
 package com.gmail.leewkb1307.callprefixfilter;
 
 import android.content.Context;
-import android.preference.EditTextPreference;
+import android.text.InputType;
 import android.util.AttributeSet;
-import android.view.View;
-import android.view.ViewGroup;
+
+import androidx.preference.EditTextPreference;
+
+import java.util.Objects;
 
 class EditNumPreference extends EditTextPreference {
     public EditNumPreference(Context aContext, AttributeSet attrs) {
         super(aContext, attrs);
-    }
 
-    @Override
-    protected View onCreateView(ViewGroup parent) {
-        setSummaryText();
-        return super.onCreateView(parent);
+        setOnBindEditTextListener(editText -> editText.setInputType(InputType.TYPE_CLASS_NUMBER));
     }
 
     @Override
@@ -31,7 +29,7 @@ class EditNumPreference extends EditTextPreference {
     private void setSummaryText() {
         String numText = getText();
 
-        if (numText.isEmpty()) {
+        if (Objects.requireNonNull(numText).isEmpty()) {
             setSummary(R.string.text_n_a);
         } else {
             setSummary(numText);

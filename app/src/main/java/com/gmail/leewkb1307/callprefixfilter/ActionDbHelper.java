@@ -1,18 +1,15 @@
 package com.gmail.leewkb1307.callprefixfilter;
 
-import android.annotation.TargetApi;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
-import android.os.Build;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
 
-import static android.os.Build.VERSION_CODES.HONEYCOMB;
 import static com.gmail.leewkb1307.callprefixfilter.ActionContract.ActionEntry.COL_ACTION;
 import static com.gmail.leewkb1307.callprefixfilter.ActionContract.ActionEntry.COL_C_CODE;
 import static com.gmail.leewkb1307.callprefixfilter.ActionContract.ActionEntry.COL_PREFIX;
@@ -133,7 +130,7 @@ class ActionDbHelper extends SQLiteOpenHelper {
 
         SQLiteDatabase db = getReadableDatabase();
         String whereClause = COL_C_CODE + " = ? AND " + COL_PREFIX + " = ?";
-        String whereArgs[] = new String[] {c_code, prefix};
+        String[] whereArgs = new String[] {c_code, prefix};
         Cursor cursor = db.query(TABLE_NAME,
                 new String[]{_ID},
                 whereClause, whereArgs, null, null, null);
@@ -250,20 +247,7 @@ class ActionDbHelper extends SQLiteOpenHelper {
 
     public void beginWriteBatch() {
         mDB = getWritableDatabase();
-        if (Build.VERSION.SDK_INT >= HONEYCOMB) {
-            beginTranGE11();
-        } else {
-            beginTranLT11();
-        }
-    }
-
-    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
-    private void beginTranGE11() {
         mDB.beginTransactionNonExclusive();
-    }
-
-    private void beginTranLT11() {
-        mDB.beginTransaction();
     }
 
     public void endWriteBatch(boolean isSuccess) {
