@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <TextView
+        android:id="@+id/hint_prefix"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingLeft="5dp"
+        android:text="@string/diag_text_prefix"
+        android:textSize="20sp" />
+
+    <CheckBox
+        android:text="@string/diag_text_exact"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingLeft="5dp"
+        android:id="@+id/checkBox_exact"
+        android:textSize="20sp" />
+
+    <EditText
+        android:id="@+id/text_prefix"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingLeft="5dp"
+        android:inputType="phone"
+        android:text=""
+        android:textSize="20sp" >
+    <requestFocus />
+    </EditText>
+
+    <TextView
+        android:id="@+id/hint_c_code"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingLeft="5dp"
+        android:text="@string/diag_text_ccode"
+        android:textSize="20sp" />
+
+    <EditText
+        android:id="@+id/text_c_code"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingLeft="5dp"
+        android:inputType="phone"
+        android:text=""
+        android:textSize="20sp" />
+
+</LinearLayout>

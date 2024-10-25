@@ -1,0 +1,62 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="com.gmail.leewkb1307.callprefixfilter.MainActivity">
+    <item
+        android:id="@+id/action_add_butt"
+        android:orderInCategory="100"
+        android:title="@string/action_add_butt"
+        android:checkable="true"
+        android:checked="true"
+        app:showAsAction="never" />
+    <item
+        android:orderInCategory="150"
+        android:title="@string/action_sort_order"
+        app:showAsAction="never" >
+        <menu>
+            <group
+                android:checkableBehavior="single">
+                <item
+                    android:id="@+id/action_sort_not"
+                    android:title="@string/action_sort_order_nil" />
+                <item
+                    android:id="@+id/action_sort_pfx"
+                    android:title="@string/action_sort_order_pfx" />
+                <item
+                    android:id="@+id/action_sort_cc_pfx"
+                    android:title="@string/action_sort_order_cc_pfx" />
+            </group>
+        </menu>
+    </item>
+    <item
+        android:orderInCategory="175"
+        android:title="@string/action_operation"
+        app:showAsAction="never" >
+        <menu>
+            <item
+                android:id="@+id/action_export_csv"
+                android:title="@string/action_op_export_csv" />
+            <item
+                android:id="@+id/action_import_csv"
+                android:title="@string/action_op_import_csv" />
+            <item
+                android:id="@+id/action_clear_rules"
+                android:title="@string/action_op_clear_rules" />
+        </menu>
+    </item>
+    <item
+        android:id="@+id/action_call_log"
+        android:orderInCategory="200"
+        android:title="@string/action_call_log"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_settings"
+        android:orderInCategory="300"
+        android:title="@string/action_settings"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_help"
+        android:orderInCategory="400"
+        android:title="@string/action_help"
+        app:showAsAction="never" />
+</menu>

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/content_main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    app:layout_behavior="@string/appbar_scrolling_view_behavior"
+    tools:context="com.gmail.leewkb1307.callprefixfilter.MainActivity"
+    tools:showIn="@layout/activity_main">
+
+    <TextView
+        android:id="@+id/text_filter_error"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:text="@string/mesg_filter_not_permitted"
+        android:textSize="20sp"
+        android:padding="5dp" />
+
+    <TextView
+        android:id="@+id/text_progress_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/text_filter_error"
+        android:visibility="gone"
+        android:text="@string/mesg_prg_nil"
+        android:textSize="20sp"
+        android:padding="5dp" />
+
+    <ProgressBar
+        style="?android:attr/progressBarStyleHorizontal"
+        android:id="@+id/progressBar_main"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/text_progress_title"
+        android:visibility="gone" />
+
+    <ListView
+        android:id="@+id/list_prefix_action"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/progressBar_main" />
+</RelativeLayout>

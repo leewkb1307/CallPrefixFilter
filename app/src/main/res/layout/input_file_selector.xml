@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <TextView
+        android:id="@+id/text_current_path"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:padding="5dp"
+        android:textSize="20sp"
+        android:text="@string/diag_text_cpath" />
+
+    <ListView
+        android:id="@+id/list_filename"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/text_current_path"
+        android:layout_above="@+id/hint_filename"
+        android:padding="5dp" />
+
+    <TextView
+        android:id="@+id/hint_filename"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/edit_filename"
+        android:padding="5dp"
+        android:text="@string/diag_text_fname"
+        android:visibility="gone" />
+
+    <EditText
+        android:id="@+id/edit_filename"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:padding="5dp"
+        android:inputType="text"
+        android:text="@string/diag_text_ename"
+        android:visibility="gone" />
+
+    <ListView
+        android:id="@+id/list_voided"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true" />
+
+</RelativeLayout>

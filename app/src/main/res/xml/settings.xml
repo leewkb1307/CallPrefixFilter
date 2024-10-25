@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" >
+
+    <PreferenceCategory android:title="Blocker" >
+
+        <CheckBoxPreference
+            android:defaultValue="true"
+            android:key="prefEnableFilter"
+            android:summary="Start incoming call filter"
+            android:title="Enable filter" >
+        </CheckBoxPreference>
+
+        <CheckBoxPreference
+            android:defaultValue="true"
+            android:key="prefAllowContacts"
+            android:summary="Always allow contacts to pass through"
+            android:title="Allow contacts" >
+        </CheckBoxPreference>
+
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="prefBlockNumLess"
+            android:summary="Block call that shows no number"
+            android:title="Block unknown" >
+        </CheckBoxPreference>
+
+        <com.gmail.leewkb1307.callprefixfilter.EditNumPreference
+            android:defaultValue=""
+            android:key="prefBlockShorter"
+            android:title="Block number shorter than"
+            android:inputType="number" >
+        </com.gmail.leewkb1307.callprefixfilter.EditNumPreference>
+
+        <com.gmail.leewkb1307.callprefixfilter.EditNumPreference
+            android:defaultValue=""
+            android:key="prefBlockLonger"
+            android:title="Block number longer than"
+            android:inputType="number" >
+        </com.gmail.leewkb1307.callprefixfilter.EditNumPreference>
+
+        <com.gmail.leewkb1307.callprefixfilter.EnumPreference
+            android:defaultValue="2"
+            android:key="prefCcodeType"
+            android:summary="How the country code is used"
+            android:title="Use Country Code"
+            android:entries="@array/ccodeTypeMesg"
+            android:entryValues="@array/ccodeTypeData" >
+        </com.gmail.leewkb1307.callprefixfilter.EnumPreference>
+
+        <com.gmail.leewkb1307.callprefixfilter.EnumPreference
+            android:defaultValue="2"
+            android:key="prefNotiType"
+            android:summary="Select the notification type"
+            android:title="Notification type"
+            android:entries="@array/notiTypeMesg"
+            android:entryValues="@array/notiTypeData" >
+        </com.gmail.leewkb1307.callprefixfilter.EnumPreference>
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="User interface" >
+
+        <CheckBoxPreference
+            android:defaultValue="true"
+            android:key="prefSwipeSideways"
+            android:summary="Enable sideways swipe shortcuts"
+            android:title="Swipe sideways" >
+        </CheckBoxPreference>
+
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="prefOpLockScreen"
+            android:summary="Lock screen orientation during batch operations"
+            android:title="Lock screen" >
+        </CheckBoxPreference>
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array
+        name="ccodeTypeMesg">
+        <item>@string/ccode_type_1</item>
+        <item>@string/ccode_type_2</item>
+    </string-array>
+    <string-array name="ccodeTypeData">
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+    <string-array
+        name="notiTypeMesg">
+        <item>@string/noti_type_0</item>
+        <item>@string/noti_type_1</item>
+        <item>@string/noti_type_2</item>
+    </string-array>
+    <string-array name="notiTypeData">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+</resources>
